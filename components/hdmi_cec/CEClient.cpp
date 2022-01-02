@@ -2,7 +2,7 @@
 
 // create a new instance of CEClient
 CEClient::CEClient(int physicalAddress, int inputPin, int outputPin) : 
-    CEC_Device(physicalAddress, inputPin, outputPin<0 ? inputPin : outputPin) {
+    CEC_Device(physicalAddress, inputPin) {
 
     _ready = false;
 }

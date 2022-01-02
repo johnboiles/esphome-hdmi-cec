@@ -13,12 +13,11 @@
 # define CEC_LOW HIGH
 #endif
 
-CEC_Device::CEC_Device(int physicalAddress, int in_line, int out_line)
+CEC_Device::CEC_Device(int physicalAddress, int in_line)
 : CEC_LogicalDevice(physicalAddress)
 , _isrTriggered(false)
 , _lastLineState2(true)
 , _in_line(in_line)
-, _out_line(out_line)
 {
 }
 
@@ -28,15 +27,12 @@ void CEC_Device::Initialize(CEC_DEVICE_TYPE type)
   gpio_set_mode(digitalPinToPort(_in_line), PIN_MAP[_in_line].gpio_bit, GPIO_OUTPUT_OD); // set open drain output
   _out_line = _in_line;
 #elif defined(ESP8266) || defined(USE_ESP8266)
-  pinMode(_out_line, OUTPUT_OPEN_DRAIN);
   pinMode(_in_line, INPUT);
 #else
 #error FAIL
-  pinMode(_out_line, OUTPUT);
   pinMode( _in_line,  INPUT);
 #endif  
 
-  digitalWrite(_out_line, CEC_HIGH);
   delay(200);
 
   CEC_LogicalDevice::Initialize(type);
@@ -68,7 +64,13 @@ bool CEC_Device::LineState()
 
 void CEC_Device::SetLineState(bool state)
 {
-  digitalWrite(_out_line, state?CEC_HIGH:CEC_LOW);
+  if (state) {
+		pinMode(_in_line, INPUT_PULLUP);
+	} else {
+		digitalWrite(_in_line, LOW);
+		pinMode(_in_line, OUTPUT);
+	}
+  // digitalWrite(_out_line, state?CEC_HIGH:CEC_LOW);
   // give enough time for the line to settle before sampling
   // it
   delayMicroseconds(50);
