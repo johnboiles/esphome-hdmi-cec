@@ -2,6 +2,7 @@
 
 #include "esphome/core/automation.h"
 #include "esphome/core/component.h"
+#include "esphome/core/hal.h"
 #include "esphome/core/optional.h"
 #include "esphome/core/log.h"
 #include "CEClient.h"
@@ -36,13 +37,13 @@ class HdmiCec : public Component {
 
   void send_data(uint8_t source, uint8_t destination, const std::vector<uint8_t> &data);
   void set_address(uint8_t address) { this->address_ = address; }
+  void set_pin(InternalGPIOPin *pin) { this->pin_ = pin; }
 
   void add_trigger(HdmiCecTrigger *trigger);
 
  protected:
 
-  // InternalGPIOPin *input_pin_;
-  // InternalGPIOPin *output_pin_;
+  InternalGPIOPin *pin_;
 
   template<typename... Ts> friend class HdmiCecSendAction;
   std::vector<HdmiCecTrigger *> triggers_{};

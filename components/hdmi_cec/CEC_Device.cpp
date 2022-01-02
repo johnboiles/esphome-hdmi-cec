@@ -29,7 +29,6 @@ void CEC_Device::Initialize(CEC_DEVICE_TYPE type)
   _out_line = _in_line;
 #elif defined(ESP8266) || defined(USE_ESP8266)
   pinMode(_out_line, OUTPUT_OPEN_DRAIN);
-    DbgPrint("Seting pin mode input=%d\n", _in_line);
   pinMode(_in_line, INPUT);
 #else
 #error FAIL

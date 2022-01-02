@@ -33,7 +33,6 @@ int CEClient::getLogicalAddress() {
 
 // enable-disable promiscuous mode
 void CEClient::setPromiscuous(bool promiscuous) {
-    DbgPrint("setPromiscuous\n");
     Promiscuous = promiscuous;
 }
 

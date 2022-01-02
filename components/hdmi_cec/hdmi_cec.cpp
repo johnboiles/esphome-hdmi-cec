@@ -24,8 +24,8 @@ void HdmiCec::setup() {
   this->high_freq_.start();
 
   ESP_LOGCONFIG(TAG, "Setting up HDMI-CEC...");
-  // TODO: Can i set this at compile time so I don't have to use heap space?
-  this->ceclient_ = new CEClient(0x00, 4, 5);
+  // TODO: Can I set this at compile time so I don't have to use heap space?
+  this->ceclient_ = new CEClient(0x00, this->pin_->get_pin(), 5);
   this->ceclient_->begin(CEC_LogicalDevice::CDT_AUDIO_SYSTEM);
   this->ceclient_->setPromiscuous(true);
 
@@ -51,7 +51,7 @@ void HdmiCec::setup() {
 void HdmiCec::dump_config() {
   ESP_LOGCONFIG(TAG, "HDMI-CEC:");
   ESP_LOGCONFIG(TAG, "  address: %d", this->address_);
-  // LOG_PIN("  Output Pin: ", this->gate_pin_);
+  LOG_PIN("  Pin: ", this->pin_);
 }
 
 void HdmiCec::send_data(uint8_t source, uint8_t destination, const std::vector<uint8_t> &data) {

@@ -55,6 +55,7 @@ external_components:
 
 hdmi_cec:
   address: 0x05
+  pin: 4
   on_packet:
     - opcode: 0xC3 # Request ARC start
       then:
