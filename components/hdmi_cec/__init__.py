@@ -9,8 +9,6 @@ import logging
 _LOGGER = logging.getLogger(__name__)
 
 CODEOWNERS = ["@johnboiles"]
-# DEPENDENCIES = ["spi"]
-IS_PLATFORM_COMPONENT = False
 
 CONF_DESTINATION = "destination"
 CONF_OPCODE = "opcode"
@@ -31,6 +29,7 @@ HdmiCecTrigger = hdmi_cec_ns.class_(
     automation.Trigger.template(cg.std_vector.template(cg.uint8)),
     cg.Component,
 )
+
 
 CONFIG_SCHEMA = cv.Schema(
     {
