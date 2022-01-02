@@ -10,12 +10,13 @@ public:
   
   void Initialize(CEC_DEVICE_TYPE type);
   virtual void Run();
-  
-protected:
-  virtual bool LineState();
-  virtual void SetLineState(bool);
   virtual void SignalIRQ();
+    bool _lastLineState2;
+  virtual bool LineState();
   virtual bool IsISRTriggered();
+
+protected:
+  virtual void SetLineState(bool);
   virtual bool IsISRTriggered2() { return _isrTriggered; }
 
   virtual void OnReady();
@@ -23,7 +24,6 @@ protected:
   
 private:
   bool _isrTriggered;
-  bool _lastLineState2;
   int  _in_line;
 };
 

@@ -89,6 +89,8 @@ async def to_code(config):
     rhs = HdmiCecComponent.new()
     var = cg.Pvariable(config[CONF_ID], rhs)
 
+    cg.add_library("ESP8266TimerInterrupt", "1.4.1")
+
     if not CORE.has_id(config[CONF_ID]):
         var = cg.new_Pvariable(config[CONF_ID], var)
 

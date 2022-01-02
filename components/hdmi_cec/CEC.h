@@ -25,11 +25,12 @@ public:
     void setPhysicalAddress(int physicalAddress) {
         _physicalAddress = physicalAddress;
     }
+	bool ProcessStateMachine(bool* success);
+	unsigned long _waitTime;
 
 protected:
 	virtual bool IsISRTriggered() = 0;
 
-	bool ProcessStateMachine(bool* success);
 
 	virtual void OnReceiveComplete(unsigned char* buffer, int count);
 	virtual void OnTransmitComplete(bool);
@@ -75,7 +76,6 @@ protected:
 	static int _validLogicalAddresses[6][5];
 	int _logicalAddress;
 	int _physicalAddress;
-	unsigned long _waitTime;
 	bool _done;
 
 	CEC_DEVICE_TYPE _deviceType;

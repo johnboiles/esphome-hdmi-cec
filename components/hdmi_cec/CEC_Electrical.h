@@ -17,6 +17,7 @@ public:
 
 	int Promiscuous;
 	int MonitorMode;
+	bool _amLastTransmittor;
 
 protected:
 	virtual bool LineState() = 0;
@@ -110,7 +111,6 @@ private:
 	bool _eom;
 	bool _follower;
 	bool _broadcast;
-	bool _amLastTransmittor;
 	bool _transmitPending;
 
 	CEC_PRIMARY_STATE _primaryState;

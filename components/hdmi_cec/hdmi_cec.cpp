@@ -2,6 +2,9 @@
 #include "esphome/core/log.h"
 #include "esphome/core/hal.h"
 
+#include <Arduino.h>
+#include <ESP8266TimerInterrupt.h>
+
 namespace esphome {
 namespace hdmi_cec {
 
@@ -20,12 +23,61 @@ HdmiCec::HdmiCec() {
   ESP_LOGI(TAG, "HdmiCec");
 }
 
-void HdmiCec::setup() {
-  this->high_freq_.start();
+bool running = false;
+ESP8266Timer ITimer;
+HdmiCec *gArg;
 
+void IRAM_ATTR HdmiCec::TimerHandler() {
+  ITimer.detachInterrupt();
+
+  gArg->ceclient_->_lastLineState2 = gArg->ceclient_->LineState();
+
+  while (!gArg->ceclient_->ProcessStateMachine(NULL));
+
+  running = true;
+  unsigned long wait = gArg->ceclient_->Process();
+  running = false;
+
+  if (wait != (unsigned long)-2) {
+    // Interval in microsecs
+    ITimer.attachInterruptInterval(wait, TimerHandler);
+  }
+  // timer interrupt for waittime
+  gArg->ceclient_->_waitTime = wait;
+}
+
+void IRAM_ATTR HdmiCec::interrupt(HdmiCec *arg) {
+  if (running) return;
+
+  arg->ceclient_->_lastLineState2 = arg->ceclient_->LineState();
+  arg->ceclient_->SignalIRQ();
+
+	while (!arg->ceclient_->ProcessStateMachine(NULL));
+
+	if (((arg->ceclient_->_waitTime == (unsigned long)-1 && !arg->ceclient_->TransmitPending()) || (arg->ceclient_->_waitTime != (unsigned long)-1 && arg->ceclient_->_waitTime > micros()))
+    && !arg->ceclient_->IsISRTriggered())
+		return;
+
+  running = true;
+  unsigned long wait = arg->ceclient_->Process();
+  running = false;
+  if (wait != (unsigned long)-2) {
+    // Interval in microsecs
+    gArg = arg;
+    ITimer.attachInterruptInterval(wait, TimerHandler);
+  }
+  // timer interrupt for waittime
+  arg->ceclient_->_waitTime = wait;
+	return;
+}
+
+void HdmiCec::setup() {
   ESP_LOGCONFIG(TAG, "Setting up HDMI-CEC...");
   // TODO: Can I set this at compile time so I don't have to use heap space?
   this->ceclient_ = new CEClient(0x00, this->pin_->get_pin(), 5);
+
+  this->pin_->attach_interrupt(HdmiCec::interrupt, this, gpio::INTERRUPT_ANY_EDGE);
+
   this->ceclient_->begin(CEC_LogicalDevice::CDT_AUDIO_SYSTEM);
   this->ceclient_->setPromiscuous(true);
 
@@ -73,7 +125,9 @@ int counter = 0;
 int timer = 0;
 
 void HdmiCec::loop() {
-  this->ceclient_->run();
+  // running = true;
+  // this->ceclient_->run();
+  // running = false;
 
   // The current implementation of CEC is inefficient and relies on polling to
   // identify signal changes at just the right time. Experimentally it needs to 

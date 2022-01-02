@@ -70,11 +70,14 @@ void CEC_Device::SetLineState(bool state)
 		digitalWrite(_in_line, LOW);
 		pinMode(_in_line, OUTPUT);
 	}
-  // digitalWrite(_out_line, state?CEC_HIGH:CEC_LOW);
-  // give enough time for the line to settle before sampling
-  // it
-  delayMicroseconds(50);
-  _lastLineState2 = LineState();
+  if (state == CEC_LOW) {
+    _lastLineState2 = 0;
+  } else {
+    // give enough time for the line to settle before sampling
+    // it
+    delayMicroseconds(50);
+    _lastLineState2 = LineState();
+  }
 }
 
 void CEC_Device::SignalIRQ()
@@ -95,17 +98,17 @@ bool CEC_Device::IsISRTriggered()
 
 void CEC_Device::Run()
 {
-  bool state = LineState();
-  if (_lastLineState2 != state)
-  {
-    _lastLineState2 = state;
-    SignalIRQ();
-    // if (state == CEC_HIGH) {
-    //     DbgPrint("=");
-    // } else {
-    //     DbgPrint("_");
+  // bool state = LineState();
+  // if (_lastLineState2 != state)
+  // {
+  //   _lastLineState2 = state;
+  //   SignalIRQ();
+  //   // if (state == CEC_HIGH) {
+  //   //     DbgPrint("=");
+  //   // } else {
+  //   //     DbgPrint("_");
 
-    // }
-  }
+  //   // }
+  // }
   CEC_LogicalDevice::Run();
 }

@@ -41,6 +41,9 @@ class HdmiCec : public Component {
 
   void add_trigger(HdmiCecTrigger *trigger);
 
+  static void interrupt(HdmiCec *arg);
+  static void TimerHandler();
+
  protected:
 
   InternalGPIOPin *pin_;
@@ -50,7 +53,6 @@ class HdmiCec : public Component {
   // CEC physical address 0-14
   uint8_t address_;
   CEClient *ceclient_;
-  HighFrequencyLoopRequester high_freq_;
 };
 
 template<typename... Ts> class HdmiCecSendAction : public Action<Ts...>, public Parented<HdmiCec> {

@@ -162,5 +162,3 @@ void CEC_LogicalDevice::Run()
 	        _waitTime = wait;
 	return;
 }
-
-
