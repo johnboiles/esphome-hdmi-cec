@@ -3,7 +3,7 @@ import esphome.config_validation as cv
 from esphome import automation
 from esphome import pins
 from esphome.core import CORE
-from esphome.const import CONF_ID, CONF_TRIGGER_ID, CONF_DATA, CONF_SOURCE, CONF_ADDRESS, CONF_PIN
+from esphome.const import CONF_ID, CONF_TRIGGER_ID, CONF_DATA, CONF_SOURCE, CONF_ADDRESS, CONF_PIN, CONF_ON_MESSAGE
 
 import logging
 _LOGGER = logging.getLogger(__name__)
@@ -13,7 +13,6 @@ CODEOWNERS = ["@johnboiles"]
 IS_PLATFORM_COMPONENT = False
 
 CONF_DESTINATION = "destination"
-CONF_ON_PACKET = "on_packet"
 CONF_OPCODE = "opcode"
 
 
@@ -38,23 +37,13 @@ CONFIG_SCHEMA = cv.Schema(
         cv.GenerateID(): cv.declare_id(HdmiCecComponent),
         cv.Required(CONF_ADDRESS): cv.int_range(min=0, max=15),
         cv.Required(CONF_PIN): pins.internal_gpio_output_pin_schema,
-        cv.Optional(CONF_ON_PACKET): automation.validate_automation(
+        cv.Optional(CONF_ON_MESSAGE): automation.validate_automation(
             {
                 cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(HdmiCecTrigger),
                 cv.Optional(CONF_SOURCE): cv.int_range(min=0, max=15),
                 cv.Optional(CONF_DESTINATION): cv.int_range(min=0, max=15),
                 cv.Optional(CONF_OPCODE): cv.int_range(min=0, max=255),
                 cv.Optional(CONF_DATA): cv.templatable(validate_raw_data),
-                # cv.Optional(CONF_ON_PACKET): automation.validate_automation(
-                #     {
-                #         cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(HdmiCecTrigger),
-                #         cv.Optional(CONF_SOURCE): cv.int_range(min=0, max=15),
-                #         cv.Optional(CONF_DESTINATION): cv.int_range(min=0, max=15),
-                #         cv.Optional(CONF_OPCODE): cv.int_range(min=0, max=255),
-                #         cv.Optional(CONF_DATA): cv.templatable(validate_raw_data),
-                #     }
-                # ),
-
             }
         ),
     }
@@ -108,7 +97,7 @@ async def to_code(config):
     pin = await cg.gpio_pin_expression(config[CONF_PIN])
     cg.add(var.set_pin(pin))
 
-    for conf in config.get(CONF_ON_PACKET, []):
+    for conf in config.get(CONF_ON_MESSAGE, []):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
 
         # Apply optional filters
