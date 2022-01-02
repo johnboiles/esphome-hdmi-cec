@@ -82,6 +82,14 @@ button:
 
 * The timing for receiving and parsing CEC messages depends on the timing with which `loop` is called and thus this is very sensitive to other things the microcontroller are doing that may delay the `loop` method getting called by > 0.1ms. In my testing it only works really reliably on an ESP8266 with WiFi disabled. This will be fixed by better use of interrupts in the HDMI-CEC driver. The ESP32 will probably work better as-is, though I haven't tried it yet.
 
+## TODO
+
+* Adapt or rewrite the CEC driver to be interrupt-driven.
+* Format Python and C++ code
+* Add GitHub action to test the build
+* Write tests?
+* Fritzing (or similar) connection diagram
+
 ## See Also
 
 * I originally prototyped something like this with a Raspberry Pi. [Here's my writeup](https://community.home-assistant.io/t/cec-volume-control-for-ir-devices-by-pretending-to-be-an-hdmi-arc-device/323047/7) on that.
