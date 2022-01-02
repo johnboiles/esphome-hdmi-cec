@@ -7,15 +7,13 @@ namespace hdmi_cec {
 
 static const char *const TAG = "hdmi_cec";
 
-void transmitComplete(bool complete) {
-    ESP_LOGI(TAG, "Transmit complete %d", complete);
-}
-
-void messageReceived(int source, int dest, unsigned char* buffer, int count) {
-  ESP_LOGI(TAG, "RX: %02d -> %02d: %02X", source, dest, ((source&0x0f)<<4)|(dest&0x0f));
-  for (int i = 0; i < count; i++) {
-    ESP_LOGI(TAG, ":%02X", buffer[i]);
-  }
+void messageToDebugString(char *message, unsigned char *buffer, int count) {
+    for (int i = 0; i < count; i++) {
+      sprintf(&(message[i*3]), "%02X", buffer[i]);
+      if (i < count - 1) {
+        sprintf(&(message[i*3+2]), ":");
+      }
+    }
 }
 
 HdmiCec::HdmiCec() {
@@ -26,37 +24,45 @@ void HdmiCec::setup() {
   this->high_freq_.start();
 
   ESP_LOGCONFIG(TAG, "Setting up HDMI-CEC...");
-  // create a CEC client
   // TODO: Can i set this at compile time so I don't have to use heap space?
   this->ceclient_ = new CEClient(0x00, 4, 5);
   this->ceclient_->begin(CEC_LogicalDevice::CDT_AUDIO_SYSTEM);
   this->ceclient_->setPromiscuous(true);
-  // this->ceclient_->setMonitorMode(true);
-  this->ceclient_->onTransmitCompleteCallback(transmitComplete);
+
+  std::function<void(int, int, unsigned char*, int)> messageReceived = [this](int source, int destination, unsigned char* buffer, int count) {
+    char debugMessage[HDMI_CEC_MAX_DATA_LENGTH*3];
+    messageToDebugString(debugMessage, buffer, count);
+    ESP_LOGD(TAG, "RX: (%d->%d) %02X:%s", source, destination, ((source&0x0f)<<4)|(destination&0x0f), debugMessage);
+
+    uint8_t opcode = buffer[0];
+    for (auto trigger : this->triggers_) {
+      if ((!trigger->opcode_.has_value() || (*trigger->opcode_ == opcode)) &&
+         (!trigger->source_.has_value() || (*trigger->source_ == source)) &&
+         (!trigger->destination_.has_value() || (*trigger->destination_ == destination)) &&
+         (!trigger->data_.has_value() || (count == trigger->data_->size() && std::equal(trigger->data_->begin(), trigger->data_->end(), buffer)))) {
+        auto dataVec = std::vector<uint8_t>(buffer, buffer+count);
+        trigger->trigger(source, destination, dataVec);
+      }
+    }
+  };
   this->ceclient_->onReceiveCallback(messageReceived);
-
-  // this->pin_->setup();
-  // this->isr_pin_ = pin_->to_isr();
-  // this->pin_->attach_interrupt(PulseMeterSensor::gpio_intr, this, gpio::INTERRUPT_ANY_EDGE);
-
-  ESP_LOGI(TAG, "HDMI complete");
 }
 
 void HdmiCec::dump_config() {
-  ESP_LOGI(TAG, "dump_config");
+  ESP_LOGCONFIG(TAG, "HDMI-CEC:");
+  ESP_LOGCONFIG(TAG, "  address: %d", this->address_);
+  // LOG_PIN("  Output Pin: ", this->gate_pin_);
 }
 
 void HdmiCec::send_data(uint8_t source, uint8_t destination, const std::vector<uint8_t> &data) {
-    // ESP_LOGD(TAG, "TX: %02d -> %02d: %02X", source, destination, ((source&0x0f)<<4)|(destination&0x0f));
-    // unsigned char buffer[16];
-    // for (int i = 0; i < data.size(); i++) {
-    //   ESP_LOGD(TAG, ":%02X", data[i]);
-    //   buffer[i] = data[i];
-    // }
-
     const uint8_t *buffer = reinterpret_cast<const uint8_t *>(data.data());
-    this->ceclient_->TransmitFrame(destination, const_cast<unsigned char *>(buffer), data.size());
-    // this->ceclient_->TransmitFrame(destination, buffer, data.size());
+    auto charBuffer = const_cast<unsigned char *>(buffer);
+
+    char debugMessage[HDMI_CEC_MAX_DATA_LENGTH*3];
+    messageToDebugString(debugMessage, charBuffer, data.size());
+    ESP_LOGD(TAG, "TX: (%d->%d) %02X:%s", source, destination, ((source&0x0f)<<4)|(destination&0x0f), debugMessage);
+
+    this->ceclient_->TransmitFrame(destination, charBuffer, data.size());
 }
 
 void HdmiCec::add_trigger(HdmiCecTrigger *trigger) {
@@ -64,23 +70,19 @@ void HdmiCec::add_trigger(HdmiCecTrigger *trigger) {
 };
 
 int counter = 0;
-int timerrr = 0;
+int timer = 0;
 
 void HdmiCec::loop() {
   this->ceclient_->run();
 
-  // We're only running every 16ms which is prob too slow. Sometimes at startup it runs
-  // 4904 times per second or every .2ms and thats why it works sometimes
-  // My sample code runs 274238 tims in 5000ms or every 0.01823234ms
-  // So in short I've got to convert this to using an ISR
-
-  // high frequency loop gets me to Ran 17269 tims in 5000ms or about 0.28 ms which can transmit fine
-  // but is still not receiving well hmm
-  // with high freq and disabling wifi i can get to 106647 tims in 5000ms or 0.04716981 ms
-  if (millis() - timerrr > 5000) {
-    ESP_LOGI(TAG, "Ran %d tims in 5000ms", counter);
+  // The current implementation of CEC is inefficient and relies on polling to
+  // identify signal changes at just the right time. Experimentally it needs to 
+  // run faster than every ~0.04ms to be reliable. This can be solved by creating
+  // an interrupt-driven CEC driver.
+  if (millis() - timer > 10000) {
+    ESP_LOGD(TAG, "Ran %d times in 10000ms (every %fms)", counter, 10000.0f / (float)counter);
     counter = 0;
-    timerrr = millis();
+    timer = millis();
   }
   counter++;
 }

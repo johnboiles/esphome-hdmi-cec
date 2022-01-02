@@ -4,8 +4,9 @@
 #include "esphome/core/component.h"
 #include "esphome/core/optional.h"
 #include "esphome/core/log.h"
-
 #include "CEClient.h"
+
+#include <functional>
 
 namespace esphome {
 namespace hdmi_cec {
@@ -25,21 +26,6 @@ template<typename... Ts> class HdmiCecSendAction;
 
 static const uint8_t HDMI_CEC_MAX_DATA_LENGTH = 16;
 
-/*
-Can Frame describes a normative CAN Frame
-The RTR = Remote Transmission Request is implemented in every CAN controller but rarely used
-So currently the flag is passed to and from the hardware but currently ignored to the user application.
-*/
-// struct CanFrame {
-//   bool use_extended_id = false;
-//   bool remote_transmission_request = false;
-//   uint32_t can_id;              /* 29 or 11 bit CAN_ID  */
-//   uint8_t can_data_length_code; /* frame payload length in byte (0 .. HDMI_CEC_MAX_DATA_LENGTH) */
-//   uint8_t data[HDMI_CEC_MAX_DATA_LENGTH] __attribute__((aligned(8)));
-// };
-
-
-
 class HdmiCec : public Component {
  public:
   HdmiCec();
@@ -49,20 +35,21 @@ class HdmiCec : public Component {
   void loop() override;
 
   void send_data(uint8_t source, uint8_t destination, const std::vector<uint8_t> &data);
-  void set_source(uint8_t source) { this->source_ = source; }
+  void set_address(uint8_t address) { this->address_ = address; }
 
   void add_trigger(HdmiCecTrigger *trigger);
 
  protected:
+
+  // InternalGPIOPin *input_pin_;
+  // InternalGPIOPin *output_pin_;
+
   template<typename... Ts> friend class HdmiCecSendAction;
   std::vector<HdmiCecTrigger *> triggers_{};
-  uint32_t source_;
+  // CEC physical address 0-14
+  uint8_t address_;
   CEClient *ceclient_;
   HighFrequencyLoopRequester high_freq_;
-
-  // virtual bool setup_internal();
-  // virtual Error send_message(struct CanFrame *frame);
-  // virtual Error read_message(struct CanFrame *frame);
 };
 
 template<typename... Ts> class HdmiCecSendAction : public Action<Ts...>, public Parented<HdmiCec> {
@@ -79,10 +66,8 @@ template<typename... Ts> class HdmiCecSendAction : public Action<Ts...>, public 
   void set_destination(uint8_t destination) { this->destination_ = destination; }
 
   void play(Ts... x) override {
-    auto source = this->source_.has_value() ? *this->source_ : this->parent_->source_;
-    ESP_LOGD("SendAction", "play %d", this->parent_);
+    auto source = this->source_.has_value() ? *this->source_ : this->parent_->address_;
     if (this->static_) {
-    ESP_LOGD("SendAction", "static %d", this->parent_);
       this->parent_->send_data(source, this->destination_, this->data_static_);
     } else {
       auto val = this->data_func_(x...);
@@ -91,10 +76,6 @@ template<typename... Ts> class HdmiCecSendAction : public Action<Ts...>, public 
   }
 
  protected:
-
-  // InternalGPIOPin *input_pin_ = nullptr;
-  // ISRInternalGPIOPin input_isr_pin_;
-
   optional<uint8_t> source_{};
   uint8_t destination_;
   bool static_{false};
@@ -102,7 +83,7 @@ template<typename... Ts> class HdmiCecSendAction : public Action<Ts...>, public 
   std::vector<uint8_t> data_static_{};
 };
 
-class HdmiCecTrigger : public Trigger<std::vector<uint8_t>>, public Component {
+class HdmiCecTrigger : public Trigger<uint8_t, uint8_t, std::vector<uint8_t>>, public Component {
   friend class HdmiCec;
 
  public:
@@ -110,12 +91,17 @@ class HdmiCecTrigger : public Trigger<std::vector<uint8_t>>, public Component {
       : parent_(parent){};
   void setup() override { this->parent_->add_trigger(this); }
 
+  void set_source(uint8_t source) { this->source_ = source; }
+  void set_destination(uint8_t destination) { this->destination_ = destination; }
+  void set_opcode(uint8_t opcode) { this->opcode_ = opcode; }
+  void set_data(std::vector<uint8_t> data) { this->data_ = data; }
+
  protected:
   HdmiCec *parent_;
-  uint8_t source_;
-  uint8_t destination_;
-  uint8_t opcode_;
-  std::vector<uint8_t> data_{};
+  optional<uint8_t> source_{};
+  optional<uint8_t> destination_{};
+  optional<uint8_t> opcode_{};
+  optional<std::vector<uint8_t>> data_{};
 };
 
 }  // namespace hdmi_cec

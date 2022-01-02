@@ -1,6 +1,5 @@
 #include "CEC_Device.h"
 #include <Arduino.h>
-#define USE_ESP8266
 
 #if defined(ARDUINO_ARCH_STM32F1) || defined(ARDUINO_ARCH_STM32F2) || defined(ARDUINO_ARCH_STM32F3) || defined(ARDUINO_ARCH_STM32F4)
 # define STM32

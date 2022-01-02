@@ -3,9 +3,12 @@
 
 #include "CEC_Device.h"
 
+#include <functional>
+
 class CEClient : public CEC_Device {
 
-typedef void (*OnReceiveCallbackFunction)(int, int, unsigned char*, int);
+// typedef void (*OnReceiveCallbackFunction)(int, int, unsigned char*, int);
+typedef std::function<void(int, int, unsigned char*, int)> OnReceiveCallbackFunction;
 typedef void (*OnTransmitCompleteCallbackFunction)(bool);
 
 public:

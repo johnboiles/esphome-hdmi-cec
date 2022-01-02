@@ -124,10 +124,10 @@ bool CEC_LogicalDevice::TransmitFrame(int targetAddress, unsigned char* buffer, 
 	unsigned char addr[1];
 
 	addr[0] = MAKE_ADDRESS(_logicalAddress, targetAddress);
-	DbgPrint("TX: %02d -> %02d: %02X", _logicalAddress, targetAddress, addr[0]);
-    for (int i = 0; i < count; i++)
-        DbgPrint(":%02X", buffer[i]);
-    DbgPrint("\n");
+	// DbgPrint("TX: %02d -> %02d: %02X", _logicalAddress, targetAddress, addr[0]);
+    // for (int i = 0; i < count; i++)
+    //     DbgPrint(":%02X", buffer[i]);
+    // DbgPrint("\n");
 
         ClearTransmitBuffer();
 	if (!TransmitPartial(addr, 1))

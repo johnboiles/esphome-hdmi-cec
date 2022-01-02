@@ -2,7 +2,7 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome import automation
 from esphome.core import CORE
-from esphome.const import CONF_ID, CONF_TRIGGER_ID, CONF_DATA, CONF_SOURCE
+from esphome.const import CONF_ID, CONF_TRIGGER_ID, CONF_DATA, CONF_SOURCE, CONF_ADDRESS
 
 import logging
 _LOGGER = logging.getLogger(__name__)
@@ -14,6 +14,7 @@ IS_PLATFORM_COMPONENT = False
 CONF_DESTINATION = "destination"
 CONF_ON_PACKET = "on_packet"
 CONF_OPCODE = "opcode"
+
 
 def validate_raw_data(value):
     if isinstance(value, list):
@@ -34,21 +35,23 @@ HdmiCecTrigger = hdmi_cec_ns.class_(
 CONFIG_SCHEMA = cv.Schema(
     {
         cv.GenerateID(): cv.declare_id(HdmiCecComponent),
-        cv.Required(CONF_SOURCE): cv.int_range(min=0, max=15),
+        cv.Required(CONF_ADDRESS): cv.int_range(min=0, max=15),
         cv.Optional(CONF_ON_PACKET): automation.validate_automation(
             {
                 cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(HdmiCecTrigger),
                 cv.Optional(CONF_SOURCE): cv.int_range(min=0, max=15),
                 cv.Optional(CONF_DESTINATION): cv.int_range(min=0, max=15),
                 cv.Optional(CONF_OPCODE): cv.int_range(min=0, max=255),
-                cv.Optional(CONF_ON_PACKET): automation.validate_automation(
-                    {
-                        cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(HdmiCecTrigger),
-                        cv.Optional(CONF_SOURCE): cv.int_range(min=0, max=15),
-                        cv.Optional(CONF_DESTINATION): cv.int_range(min=0, max=15),
-                        cv.Optional(CONF_OPCODE): cv.int_range(min=0, max=255),
-                    }
-                ),
+                cv.Optional(CONF_DATA): cv.templatable(validate_raw_data),
+                # cv.Optional(CONF_ON_PACKET): automation.validate_automation(
+                #     {
+                #         cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(HdmiCecTrigger),
+                #         cv.Optional(CONF_SOURCE): cv.int_range(min=0, max=15),
+                #         cv.Optional(CONF_DESTINATION): cv.int_range(min=0, max=15),
+                #         cv.Optional(CONF_OPCODE): cv.int_range(min=0, max=255),
+                #         cv.Optional(CONF_DATA): cv.templatable(validate_raw_data),
+                #     }
+                # ),
 
             }
         ),
@@ -70,8 +73,6 @@ CONFIG_SCHEMA = cv.Schema(
     ),
 )
 async def hdmi_cec_action_to_code(config, action_id, template_arg, args):
-    # validate_id(config[CONF_CAN_ID], config[CONF_USE_EXTENDED_ID])
-    print("config", config)
     var = cg.new_Pvariable(action_id, template_arg)
     await cg.register_parented(var, config[CONF_ID])
 
@@ -92,12 +93,8 @@ async def hdmi_cec_action_to_code(config, action_id, template_arg, args):
         cg.add(var.set_data_static(data))
     return var
 
-print("asdfasdf")
-_LOGGER.info("Logger is not enabled. Not starting UART logs.")
 
-# raise "asdfasdf"
 async def to_code(config):
-    print("HELLO", config)
     rhs = HdmiCecComponent.new()
     var = cg.Pvariable(config[CONF_ID], rhs)
 
@@ -105,13 +102,26 @@ async def to_code(config):
         var = cg.new_Pvariable(config[CONF_ID], var)
 
     await cg.register_component(var, config)
-    cg.add(var.set_source([config[CONF_SOURCE]]))
+    cg.add(var.set_address([config[CONF_ADDRESS]]))
 
     for conf in config.get(CONF_ON_PACKET, []):
-        # source = conf[CONF_SOURCE]
-        # destination = conf[CONF_DESTINATION]
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
+
+        # Apply optional filters
+        source = conf.get(CONF_SOURCE)
+        if source is not None:
+            cg.add(trigger.set_source(source))
+        destination = conf.get(CONF_DESTINATION)
+        if destination is not None:
+            cg.add(trigger.set_destination(destination))
+        opcode = conf.get(CONF_OPCODE)
+        if opcode is not None:
+            cg.add(trigger.set_opcode(opcode))
+        data = conf.get(CONF_DATA)
+        if data is not None:
+            cg.add(trigger.set_data(data))
+
         await cg.register_component(trigger, conf)
         await automation.build_automation(
-            trigger, [(cg.std_vector.template(cg.uint8), "x")], conf
+            trigger, [(cg.uint8, "source"), (cg.uint8, "destination"), (cg.std_vector.template(cg.uint8), "data")], conf
         )

@@ -2,6 +2,10 @@ esphome:
   name: cec
   platform: ESP8266
   board: d1_mini
+  platformio_options:
+    # Because of the inefficient CEC library I'm using, I can't send/receive CEC commands
+    # while having WiFi enabled. Perhaps more cpu will help.
+    board_build.f_cpu: 160000000L
   on_boot:
     priority: 0
     then:
@@ -30,45 +34,67 @@ external_components:
 #     id: gpio_d1
 #     mode: open_drain
 
+    # } else if (count == 2) {
+    #     if (buffer[1] == 0x41) {
+    #         DbgPrint("vol up\n");
+    #     } else if (buffer[1] == 0x42) {
+    #         DbgPrint("vol down\n");
+    #     } else if (buffer[1] == 0x43) {
+    #         DbgPrint("vol mute\n");
+    #     }
+    # } else if (count == 3) {
+    #     // System audio mode request
+    #     if (buffer[0] = 0x70 && buffer[1]==0x00 && buffer[2] == 0x00) {
+            
+    #         DbgPrint("System audio mode response\n");
+    #         unsigned char buffer[] = {0x50,0x72,0x01};
+    #         ceclient.TransmitFrame(0, buffer, 3);        
+
+    #     }
+    # }
+
 hdmi_cec:
-  source: 0x05
+  address: 0x05
   on_packet:
     - opcode: 0xC3 # Request ARC start
       then:
-        - lambda: |-
-            ESP_LOGD("asdf", "arc start");
+        - hdmi_cec.send: # Report ARC started
+            destination: 0x0
+            data: [ 0xC1 ]
     - opcode: 0x70 # System audio mode request
       then:
-        - lambda: |-
-            ESP_LOGD("asdf", "System audio mode request");      
+        - hdmi_cec.send:
+            destination: 0x0
+            data: [ 0x50, 0x72, 0x01 ]
     - opcode: 0x71 # Give audio status
       then:
-        - lambda: |-
-            ESP_LOGD("asdf", "audio status");
+        - hdmi_cec.send:
+            destination: 0x0
+            data: [ 0x00, 0x71, 0x04 ]
     - opcode: 0x7D # Give audio system mode status
       then:
-        - lambda: |-
-            ESP_LOGD("asdf", "system mode status");
-    - opcode: 0x46 # What's your name
+        - hdmi_cec.send:
+            destination: 0x0
+            data: [ 0x7E, 0x01 ]
+    - opcode: 0x46 # Give OSD name
       then:
-        - lambda: |-
-            ESP_LOGD("asdf", "name request");
-    - opcode: 0x8C # What's your vendorid
+        - hdmi_cec.send:
+            destination: 0x0
+            data: [0x47, 0x65, 0x73, 0x70, 0x68, 0x6F, 0x6D, 0x65]
+    - opcode: 0x8C # Give device Vendor ID
       then:
-        - lambda: |-
-            ESP_LOGD("asdf", "vendorid request");
-    - opcode: 0x41 # vol up
+        - hdmi_cec.send:
+            destination: 0x0
+            data: [0x87, 0x00, 0x13, 0x37]
+    - data: [0x44, 0x41] # User control pressed: volume up
       then:
-        - lambda: |-
-            ESP_LOGD("asdf", "vendorid request");
-    - opcode: 0x42 # vol down
+        - logger.log: "Volume up"
+    - data: [0x44, 0x42] # User control pressed: volume down
       then:
-        - lambda: |-
-            ESP_LOGD("asdf", "vendorid request");
-    - opcode: 0x43 # vol mute
+        - logger.log: "Volume down"
+    - data: [0x44, 0x43] # User control pressed: volume mute
       then:
-        - lambda: |-
-            ESP_LOGD("asdf", "vendorid request");
+        - logger.log: "Volume mute"
 
 button:
   - platform: template
