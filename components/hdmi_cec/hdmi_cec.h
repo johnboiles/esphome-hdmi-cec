@@ -5,7 +5,8 @@
 #include "esphome/core/hal.h"
 #include "esphome/core/optional.h"
 #include "esphome/core/log.h"
-#include "CEClient.h"
+
+#include "CEC_Device.h"
 
 #include <functional>
 
@@ -27,17 +28,42 @@ template<typename... Ts> class HdmiCecSendAction;
 
 static const uint8_t HDMI_CEC_MAX_DATA_LENGTH = 16;
 
+class MyCEC_Device : public CEC_Device
+{
+public:
+  MyCEC_Device() : CEC_Device() {};
+  std::function<void(int, int, unsigned char*, int)> on_receive_;
+  void set_pin(InternalGPIOPin *pin) {
+    this->pin_ = pin->get_pin();
+    pinMode(this->pin_, INPUT);
+  }
+  void set_address(CEC_Device::CEC_DEVICE_TYPE address) {
+    address_ = address;
+  }
+
+protected:
+	virtual bool LineState();
+	virtual void SetLineState(bool);
+	virtual void OnReady(int logicalAddress);
+	virtual void OnReceiveComplete(unsigned char* buffer, int count, bool ack);
+	virtual void OnTransmitComplete(unsigned char* buffer, int count, bool ack);
+
+  CEC_Device::CEC_DEVICE_TYPE address_;
+  int pin_;
+};
+
 class HdmiCec : public Component {
  public:
-  HdmiCec();
+  HdmiCec() {};
   void setup() override;
   void dump_config() override;
   float get_setup_priority() const override { return setup_priority::HARDWARE; }
   void loop() override;
 
   void send_data(uint8_t source, uint8_t destination, const std::vector<uint8_t> &data);
-  void set_address(uint8_t address) { this->address_ = address; }
+  void set_address(uint8_t address) { this->address_ = (CEC_Device::CEC_DEVICE_TYPE)address; }
   void set_pin(InternalGPIOPin *pin) { this->pin_ = pin; }
+  static void pin_interrupt(HdmiCec *arg);
 
   void add_trigger(HdmiCecTrigger *trigger);
 
@@ -48,8 +74,8 @@ class HdmiCec : public Component {
   template<typename... Ts> friend class HdmiCecSendAction;
   std::vector<HdmiCecTrigger *> triggers_{};
   // CEC physical address 0-14
-  uint8_t address_;
-  CEClient *ceclient_;
+  CEC_Device::CEC_DEVICE_TYPE address_;
+  MyCEC_Device ceclient_;
   HighFrequencyLoopRequester high_freq_;
 };
 

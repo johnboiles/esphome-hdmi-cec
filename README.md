@@ -4,7 +4,7 @@ An ESPHome component that supports receiving and transmitting HDMI-CEC messages 
 
 It's working, but very rough around the edges. Specifically it doesn't work well on ESP8266 when WiFi is enabled. See the notes section below. The ultimate goal of this project is to eventually be merged into the core ESPHome project once it's up to quality.
 
-The core CEC driver is forked from https://github.com/arpruss/ArduinoLib_CEClient.
+The core CEC driver is forked from [github.com/s-moch/CEC](https://github.com/s-moch/CEC).
 
 My use case: I already have an IR blaster built with ESPHome, but my new TCL TV has a Bluetooth remote. I want to control my older sound gear (connected over optical) with the TV remote. This component allows me to intercept HDMI-CEC volume commands and transmit the IR codes to control the soundbar. Theoretically it should allow you to make any older non-HDMI equipment work seamlessly with newer gear. You can also do things like monitor which source is selected, which HDMI devices are powered on, etc.
 
@@ -20,7 +20,7 @@ Since HDMI-CEC is a 3.3V protocol, no external components are needed. A [HDMI br
 
 ## Usage
 
-For now on the ESP8266, until the HDMI driver is rewritten to use interrupts, it's a good idea to bump the CPU speed to 160MHz:
+For now on the ESP8266, until the HDMI driver is rewritten to fully use interrupts, it's a good idea to bump the CPU speed to 160MHz:
 
 ```yaml
 esphome:
@@ -80,7 +80,7 @@ button:
 
 ## Notes
 
-* The timing for receiving and parsing CEC messages depends on the timing with which `loop` is called and thus this is very sensitive to other things the microcontroller are doing that may delay the `loop` method getting called by > 0.1ms. In my testing it only works really reliably on an ESP8266 with WiFi disabled. This will be fixed by better use of interrupts in the HDMI-CEC driver. The ESP32 will probably work better as-is, though I haven't tried it yet.
+* The timing for receiving and parsing CEC messages depends on the timing with which `loop` is called and thus this is sensitive to other things the microcontroller are doing that may delay the `loop` method getting called. I've implemented pin change interrupts which makes receive more reliable but more work needs to be done to make this entirely interrupt driven. The ESP32 will probably work better as-is, though I haven't tried it yet.
 
 ## TODO
 
