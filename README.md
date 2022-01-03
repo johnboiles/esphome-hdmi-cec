@@ -1,8 +1,6 @@
 # HDMI-CEC ESPHome Component
 
-An ESPHome component that supports receiving and transmitting HDMI-CEC messages to connected HDMI devices.
-
-It's working, but very rough around the edges. Specifically it doesn't work well on ESP8266 when WiFi is enabled. See the notes section below. The ultimate goal of this project is to eventually be merged into the core ESPHome project once it's up to quality.
+An ESPHome component that supports receiving and transmitting HDMI-CEC messages to connected HDMI devices. The ultimate goal of this project is to eventually be merged into the core ESPHome project once it's up to quality.
 
 The core CEC driver is forked from [github.com/s-moch/CEC](https://github.com/s-moch/CEC).
 
@@ -54,7 +52,7 @@ hdmi_cec:
       then:
         - hdmi_cec.send:
             destination: 0x0
-            data: [ 0x00, 0x71, 0x04 ]
+            data: [ 0x7A, 0x7F ]
     - opcode: 0x46 # Give OSD name
       then:
         - hdmi_cec.send:
