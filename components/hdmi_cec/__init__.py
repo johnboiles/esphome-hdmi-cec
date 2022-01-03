@@ -3,9 +3,18 @@ import esphome.config_validation as cv
 from esphome import automation
 from esphome import pins
 from esphome.core import CORE
-from esphome.const import CONF_ID, CONF_TRIGGER_ID, CONF_DATA, CONF_SOURCE, CONF_ADDRESS, CONF_PIN, CONF_ON_MESSAGE
+from esphome.const import (
+    CONF_ID,
+    CONF_TRIGGER_ID,
+    CONF_DATA,
+    CONF_SOURCE,
+    CONF_ADDRESS,
+    CONF_PIN,
+    CONF_ON_MESSAGE,
+)
 
 import logging
+
 _LOGGER = logging.getLogger(__name__)
 
 CODEOWNERS = ["@johnboiles"]
@@ -17,9 +26,7 @@ CONF_OPCODE = "opcode"
 def validate_raw_data(value):
     if isinstance(value, list):
         return cv.Schema([cv.hex_uint8_t])(value)
-    raise cv.Invalid(
-        "data must be a list of bytes"
-    )
+    raise cv.Invalid("data must be a list of bytes")
 
 
 hdmi_cec_ns = cg.esphome_ns.namespace("hdmi_cec")
@@ -115,5 +122,11 @@ async def to_code(config):
 
         await cg.register_component(trigger, conf)
         await automation.build_automation(
-            trigger, [(cg.uint8, "source"), (cg.uint8, "destination"), (cg.std_vector.template(cg.uint8), "data")], conf
+            trigger,
+            [
+                (cg.uint8, "source"),
+                (cg.uint8, "destination"),
+                (cg.std_vector.template(cg.uint8), "data"),
+            ],
+            conf,
         )

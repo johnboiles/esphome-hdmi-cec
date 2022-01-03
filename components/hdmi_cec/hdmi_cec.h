@@ -22,31 +22,27 @@ enum Error : uint8_t {
   ERROR_NOMSG = 5
 };
 
-
 class HdmiCecTrigger;
 template<typename... Ts> class HdmiCecSendAction;
 
 static const uint8_t HDMI_CEC_MAX_DATA_LENGTH = 16;
 
-class MyCEC_Device : public CEC_Device
-{
-public:
-  MyCEC_Device() : CEC_Device() {};
-  std::function<void(int, int, unsigned char*, int)> on_receive_;
+class MyCEC_Device : public CEC_Device {
+ public:
+  MyCEC_Device() : CEC_Device(){};
+  std::function<void(int, int, unsigned char *, int)> on_receive_;
   void set_pin(InternalGPIOPin *pin) {
     this->pin_ = pin->get_pin();
     pinMode(this->pin_, INPUT);
   }
-  void set_address(CEC_Device::CEC_DEVICE_TYPE address) {
-    address_ = address;
-  }
+  void set_address(CEC_Device::CEC_DEVICE_TYPE address) { address_ = address; }
 
-protected:
-	virtual bool LineState();
-	virtual void SetLineState(bool);
-	virtual void OnReady(int logicalAddress);
-	virtual void OnReceiveComplete(unsigned char* buffer, int count, bool ack);
-	virtual void OnTransmitComplete(unsigned char* buffer, int count, bool ack);
+ protected:
+  virtual bool LineState();
+  virtual void SetLineState(bool);
+  virtual void OnReady(int logicalAddress);
+  virtual void OnReceiveComplete(unsigned char *buffer, int count, bool ack);
+  virtual void OnTransmitComplete(unsigned char *buffer, int count, bool ack);
 
   CEC_Device::CEC_DEVICE_TYPE address_;
   int pin_;
@@ -54,21 +50,20 @@ protected:
 
 class HdmiCec : public Component {
  public:
-  HdmiCec() {};
+  HdmiCec(){};
   void setup() override;
   void dump_config() override;
   float get_setup_priority() const override { return setup_priority::HARDWARE; }
   void loop() override;
 
   void send_data(uint8_t source, uint8_t destination, const std::vector<uint8_t> &data);
-  void set_address(uint8_t address) { this->address_ = (CEC_Device::CEC_DEVICE_TYPE)address; }
+  void set_address(uint8_t address) { this->address_ = (CEC_Device::CEC_DEVICE_TYPE) address; }
   void set_pin(InternalGPIOPin *pin) { this->pin_ = pin; }
   static void pin_interrupt(HdmiCec *arg);
 
   void add_trigger(HdmiCecTrigger *trigger);
 
  protected:
-
   InternalGPIOPin *pin_;
 
   template<typename... Ts> friend class HdmiCecSendAction;
@@ -114,8 +109,7 @@ class HdmiCecTrigger : public Trigger<uint8_t, uint8_t, std::vector<uint8_t>>, p
   friend class HdmiCec;
 
  public:
-  explicit HdmiCecTrigger(HdmiCec *parent)
-      : parent_(parent){};
+  explicit HdmiCecTrigger(HdmiCec *parent) : parent_(parent){};
   void setup() override { this->parent_->add_trigger(this); }
 
   void set_source(uint8_t source) { this->source_ = source; }
