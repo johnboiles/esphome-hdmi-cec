@@ -31,11 +31,11 @@ class MyCEC_Device : public CEC_Device {
  public:
   MyCEC_Device() : CEC_Device(){};
   std::function<void(int, int, unsigned char *, int)> on_receive_;
+  std::function<void(int)> on_ready_;
   void set_pin(InternalGPIOPin *pin) {
     this->pin_ = pin->get_pin();
     pinMode(this->pin_, INPUT);
   }
-  void set_address(CEC_Device::CEC_DEVICE_TYPE address) { address_ = address; }
 
  protected:
   virtual bool LineState();
@@ -44,7 +44,7 @@ class MyCEC_Device : public CEC_Device {
   virtual void OnReceiveComplete(unsigned char *buffer, int count, bool ack);
   virtual void OnTransmitComplete(unsigned char *buffer, int count, bool ack);
 
-  CEC_Device::CEC_DEVICE_TYPE address_;
+ private:
   int pin_;
 };
 
@@ -57,7 +57,9 @@ class HdmiCec : public Component {
   void loop() override;
 
   void send_data(uint8_t source, uint8_t destination, const std::vector<uint8_t> &data);
-  void set_address(uint8_t address) { this->address_ = (CEC_Device::CEC_DEVICE_TYPE) address; }
+  void set_address(uint8_t address) { this->address_ = address; }
+  void set_physical_address(uint16_t physical_address) { this->physical_address_ = physical_address; }
+  void set_promiscuous_mode(uint16_t promiscuous_mode) { this->promiscuous_mode_ = promiscuous_mode; }
   void set_pin(InternalGPIOPin *pin) { this->pin_ = pin; }
   static void pin_interrupt(HdmiCec *arg);
 
@@ -67,11 +69,18 @@ class HdmiCec : public Component {
   InternalGPIOPin *pin_;
 
   template<typename... Ts> friend class HdmiCecSendAction;
+
   std::vector<HdmiCecTrigger *> triggers_{};
   // CEC physical address 0-14
-  CEC_Device::CEC_DEVICE_TYPE address_;
+  uint8_t address_;
+  uint16_t physical_address_;
+  bool promiscuous_mode_;
+
   MyCEC_Device ceclient_;
   HighFrequencyLoopRequester high_freq_;
+
+ private:
+  void send_data_internal(uint8_t source, uint8_t destination, unsigned char *buffer, int count);
 };
 
 template<typename... Ts> class HdmiCecSendAction : public Action<Ts...>, public Parented<HdmiCec> {

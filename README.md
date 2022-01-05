@@ -31,14 +31,22 @@ Add this repo to your external components
 
 ```yaml
 external_components:
-  - source: github://ohnboiles/esphome-hdmi-cec
+  - source: github://johnboiles/esphome-hdmi-cec
 ```
 
 Configure your `hdmi_cec` component. The `on_message` triggers will only fire if any specified `source`, `destination`, `opcode`, and `data` match.
 
 ```yaml
 hdmi_cec:
-  address: 0x05 # Audio System
+  # The initial logical address -- corresponds to device type. This may be
+  # reassigned if there are other devices of the same type on the CEC bus.
+  address: 0x05 # Audio system
+  # Promiscuous mode can be enabled to allow receiving messages not intended for us
+  promiscuous_mode: false
+  # Typically the physical address is discovered based on the point-to-point
+  # topology of the HDMI connections using the DDC line. We don't have access
+  # to that so we just hardcode a physical address.
+  physical_address: 0x4000
   pin: 4 # GPIO4
   on_message:
     - opcode: 0xC3 # Request ARC start
@@ -48,7 +56,6 @@ hdmi_cec:
             data: [ 0xC1 ]
     - opcode: 0x71 # Give audio status
       source: 0x0 # From the TV
-      destination: 0x5 # To our address
       then:
         - hdmi_cec.send:
             destination: 0x0
@@ -92,6 +99,5 @@ button:
 * I originally prototyped something like this with a Raspberry Pi. [Here's my writeup](https://community.home-assistant.io/t/cec-volume-control-for-ir-devices-by-pretending-to-be-an-hdmi-arc-device/323047/7) on that.
 * [CEC-O-MATIC](https://www.cec-o-matic.com) is absurdly useful for parsing CEC messages.
 * [HDMI 1.3a Spec](https://web.archive.org/web/20171009194844/http://www.microprocessor.org/HDMISpecification13a.pdf)
-* https://github.com/s-moch/CEC - An ESP8266-specific CEC driver that I'll probably move towards (also based on [https://github.com/arpruss/ArduinoLib_CEClient](arpruss/ArduinoLib_CEClient)). It's not working for me yet, and it doesn't support interrupts, but it's a much simpler codebase to start from.
 * [Nuvoton HDMI-CEC application note](https://www.nuvoton.com/export/resource-files/AN_0004_HDMI-CEC_EN_Rev1.00.pdf)
 * [NXP HDMI-CEC application note](https://www.nxp.com/docs/en/application-note/AN12732.pdf)

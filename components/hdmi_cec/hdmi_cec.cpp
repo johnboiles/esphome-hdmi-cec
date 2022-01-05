@@ -6,8 +6,6 @@ namespace esphome {
 namespace hdmi_cec {
 
 static const char *const TAG = "hdmi_cec";
-// TODO: Make this configurable
-#define CEC_PHYSICAL_ADDRESS 0x2000
 
 void messageToDebugString(char *message, unsigned char *buffer, int count) {
   for (int i = 0; i < count; i++) {
@@ -32,15 +30,7 @@ void MyCEC_Device::SetLineState(bool state) {
   }
 }
 
-void MyCEC_Device::OnReady(int logicalAddress) {
-  // This is called after the logical address has been allocated
-
-  unsigned char buf[4] = {0x84, CEC_PHYSICAL_ADDRESS >> 8, CEC_PHYSICAL_ADDRESS & 0xff, address_};
-
-  ESP_LOGD(TAG, "Device ready, Logical address assigned: %d", logicalAddress);
-
-  TransmitFrame(0xf, buf, 4);  // <Report Physical Address>
-}
+void MyCEC_Device::OnReady(int logicalAddress) { this->on_ready_(logicalAddress); }
 
 void MyCEC_Device::OnReceiveComplete(unsigned char *buffer, int count, bool ack) {
   // No command received?
@@ -49,20 +39,6 @@ void MyCEC_Device::OnReceiveComplete(unsigned char *buffer, int count, bool ack)
 
   auto source = (buffer[0] & 0xF0) >> 4;
   auto destination = (buffer[0] & 0x0F);
-
-  switch (buffer[1]) {
-    // Handling the physical address in code instead of yaml since it's pretty boilerplate
-    case 0x83: {
-      unsigned char buf[4] = {0x84, CEC_PHYSICAL_ADDRESS >> 8, CEC_PHYSICAL_ADDRESS & 0xff, address_};
-      TransmitFrame(0xf, buf, 4);  // <Report Physical Address>
-      char debugMessage[HDMI_CEC_MAX_DATA_LENGTH * 3];
-      messageToDebugString(debugMessage, buf, 4);
-      ESP_LOGD(TAG, "TX: (%d->%d) %02X:%s (physical address)", source, destination,
-               ((source & 0x0f) << 4) | (destination & 0x0f), debugMessage);
-      break;
-    }
-  }
-
   this->on_receive_(source, destination, &(buffer[1]), count - 1);
 }
 
@@ -90,10 +66,24 @@ void HdmiCec::setup() {
   this->pin_->attach_interrupt(HdmiCec::pin_interrupt, this, gpio::INTERRUPT_ANY_EDGE);
 
   this->ceclient_.on_receive_ = [this](int source, int destination, unsigned char *buffer, int count) {
+    // If we're not in promiscuous mode and the message isn't for us, ignore it.
+    if (!this->promiscuous_mode_ && destination != this->address_ && destination != 0xF) {
+      return;
+    }
+
     char debugMessage[HDMI_CEC_MAX_DATA_LENGTH * 3];
     messageToDebugString(debugMessage, buffer, count);
     ESP_LOGD(TAG, "RX: (%d->%d) %02X:%s", source, destination, ((source & 0x0f) << 4) | (destination & 0x0f),
              debugMessage);
+
+    // Handling the physical address response in code instead of yaml since I think it always
+    // needs to happen for other devices to be able to talk to this device.
+    if (buffer[0] == 0x83 && destination == address_) {
+      // Report physical address
+      unsigned char buf[4] = {0x84, (unsigned char) (physical_address_ >> 8),
+                              (unsigned char) (physical_address_ & 0xff), address_};
+      this->send_data_internal(this->address_, 0xF, buf, 4);
+    }
 
     uint8_t opcode = buffer[0];
     for (auto trigger : this->triggers_) {
@@ -107,6 +97,15 @@ void HdmiCec::setup() {
       }
     }
   };
+  this->ceclient_.on_ready_ = [this](int logical_address) {
+    // This is called after the logical address has been allocated
+    ESP_LOGD(TAG, "Device ready, Logical address assigned: %d", logical_address);
+    this->address_ = logical_address;
+    // Report physical address
+    unsigned char buf[4] = {0x84, (unsigned char) (physical_address_ >> 8), (unsigned char) (physical_address_ & 0xff),
+                            address_};
+    this->send_data_internal(this->address_, 0xF, buf, 4);
+  };
 }
 
 void HdmiCec::dump_config() {
@@ -119,12 +118,16 @@ void HdmiCec::send_data(uint8_t source, uint8_t destination, const std::vector<u
   const uint8_t *buffer = reinterpret_cast<const uint8_t *>(data.data());
   auto charBuffer = const_cast<unsigned char *>(buffer);
 
+  this->send_data_internal(source, destination, charBuffer, data.size());
+}
+
+void HdmiCec::send_data_internal(uint8_t source, uint8_t destination, unsigned char *buffer, int count) {
   char debugMessage[HDMI_CEC_MAX_DATA_LENGTH * 3];
-  messageToDebugString(debugMessage, charBuffer, data.size());
+  messageToDebugString(debugMessage, buffer, count);
   ESP_LOGD(TAG, "TX: (%d->%d) %02X:%s", source, destination, ((source & 0x0f) << 4) | (destination & 0x0f),
            debugMessage);
 
-  this->ceclient_.TransmitFrame(destination, charBuffer, data.size());
+  this->ceclient_.TransmitFrame(destination, buffer, count);
 }
 
 void HdmiCec::add_trigger(HdmiCecTrigger *trigger) { this->triggers_.push_back(trigger); };

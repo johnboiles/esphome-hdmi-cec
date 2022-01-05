@@ -21,6 +21,8 @@ CODEOWNERS = ["@johnboiles"]
 
 CONF_DESTINATION = "destination"
 CONF_OPCODE = "opcode"
+CONF_PHYSICAL_ADDRESS = "physical_address"
+CONF_PROMISCUOUS_MODE = "promiscuous_mode"
 
 
 def validate_raw_data(value):
@@ -42,6 +44,8 @@ CONFIG_SCHEMA = cv.Schema(
     {
         cv.GenerateID(): cv.declare_id(HdmiCecComponent),
         cv.Required(CONF_ADDRESS): cv.int_range(min=0, max=15),
+        cv.Optional(CONF_PHYSICAL_ADDRESS, default=0x0): cv.int_range(min=0, max=0xFFFE),
+        cv.Optional(CONF_PROMISCUOUS_MODE, default=False): cv.boolean,
         cv.Required(CONF_PIN): pins.internal_gpio_output_pin_schema,
         cv.Optional(CONF_ON_MESSAGE): automation.validate_automation(
             {
@@ -100,6 +104,8 @@ async def to_code(config):
 
     await cg.register_component(var, config)
     cg.add(var.set_address([config[CONF_ADDRESS]]))
+    cg.add(var.set_physical_address([config[CONF_PHYSICAL_ADDRESS]]))
+    cg.add(var.set_promiscuous_mode([config[CONF_PROMISCUOUS_MODE]]))
     pin = await cg.gpio_pin_expression(config[CONF_PIN])
     cg.add(var.set_pin(pin))
 

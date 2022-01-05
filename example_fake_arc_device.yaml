@@ -10,14 +10,21 @@ esphome:
   # platformio_options:
   #   board_build.f_cpu: 160000000L
 
-# Enable logging
 logger:
 
 external_components:
   - source: ./components
 
 hdmi_cec:
+  # The initial logical address -- corresponds to device type. This may be
+  # reassigned if there are other devices of the same type on the CEC bus.
   address: 0x05 # Audio system
+  # Promiscuous mode can be enabled to allow receiving messages not intended for us
+  promiscuous_mode: false
+  # Typically the physical address is discovered based on the point-to-point
+  # topology of the HDMI connections using the DDC line. We don't have access
+  # to that so we just hardcode a physical address.
+  physical_address: 0x4000
   pin: 4 # GPIO4
   on_message:
     - opcode: 0xC3 # Request ARC start
