@@ -2,11 +2,11 @@
 
 An ESPHome component that supports receiving and transmitting HDMI-CEC messages to connected HDMI devices. The ultimate goal of this project is to eventually be merged into the core ESPHome project once it's up to quality.
 
-The core CEC driver is forked from [github.com/s-moch/CEC](https://github.com/s-moch/CEC).
+The core CEC driver is from [github.com/s-moch/CEC](https://github.com/s-moch/CEC).
 
-My use case: I already have an IR blaster built with ESPHome, but my new TCL TV has a Bluetooth remote. I want to control my older sound gear (connected over optical) with the TV remote. This component allows me to intercept HDMI-CEC volume commands and transmit the IR codes to control the soundbar. Theoretically it should allow you to make any older non-HDMI equipment work seamlessly with newer gear. You can also do things like monitor which source is selected, which HDMI devices are powered on, etc.
+My use case: I already have an IR blaster built with ESPHome, but my new TCL TV has a Bluetooth remote. I want to control my older sound gear (connected over optical) with the TV remote but this TV only supports controlling sound gear via HDMI (typically for HDMI-ARC devices). This component allows me to intercept HDMI-CEC volume commands and transmit the IR codes to control the soundbar. Theoretically it should allow you to make any older non-HDMI equipment work seamlessly with newer gear. You can also do things like monitor which source is selected, which HDMI devices are powered on, etc.
 
-Drop me a line on [Twitter](http://twitter.com/johnboiles) or the [ESPHome Discord](https://discord.gg/KhAMKrd) if you end up trying it and/or have ideas on cool use cases!
+Drop me a line on [Twitter](http://twitter.com/johnboiles) or the [ESPHome Discord](https://discord.gg/KhAMKrd) if you end up trying it and/or have ideas for cool use cases!
 
 ## Electronics
 
