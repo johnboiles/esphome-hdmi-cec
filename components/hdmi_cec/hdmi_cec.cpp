@@ -57,10 +57,10 @@ void HdmiCec::OnReceiveComplete(unsigned char *buffer, int count, bool ack) {
   buffer = &buffer[1];
   count = count - 1;
 
-  char debugMessage[HDMI_CEC_MAX_DATA_LENGTH * 3];
-  message_to_debug_string(debugMessage, buffer, count);
+  char debug_message[HDMI_CEC_MAX_DATA_LENGTH * 3];
+  message_to_debug_string(debug_message, buffer, count);
   ESP_LOGD(TAG, "RX: (%d->%d) %02X:%s", source, destination, ((source & 0x0f) << 4) | (destination & 0x0f),
-           debugMessage);
+           debug_message);
 
   // Handling the physical address response in code instead of yaml since I think it always
   // needs to happen for other devices to be able to talk to this device.
@@ -118,10 +118,10 @@ void HdmiCec::send_data(uint8_t source, uint8_t destination, const std::vector<u
 }
 
 void HdmiCec::send_data_internal_(uint8_t source, uint8_t destination, unsigned char *buffer, int count) {
-  char debugMessage[HDMI_CEC_MAX_DATA_LENGTH * 3];
-  message_to_debug_string(debugMessage, buffer, count);
+  char debug_message[HDMI_CEC_MAX_DATA_LENGTH * 3];
+  message_to_debug_string(debug_message, buffer, count);
   ESP_LOGD(TAG, "TX: (%d->%d) %02X:%s", source, destination, ((source & 0x0f) << 4) | (destination & 0x0f),
-           debugMessage);
+           debug_message);
 
   this->TransmitFrame(destination, buffer, count);
 }
