@@ -13,10 +13,6 @@ from esphome.const import (
     CONF_ON_MESSAGE,
 )
 
-import logging
-
-_LOGGER = logging.getLogger(__name__)
-
 CODEOWNERS = ["@johnboiles"]
 
 CONF_DESTINATION = "destination"
@@ -44,7 +40,9 @@ CONFIG_SCHEMA = cv.Schema(
     {
         cv.GenerateID(): cv.declare_id(HdmiCecComponent),
         cv.Required(CONF_ADDRESS): cv.int_range(min=0, max=15),
-        cv.Optional(CONF_PHYSICAL_ADDRESS, default=0x0): cv.int_range(min=0, max=0xFFFE),
+        cv.Optional(CONF_PHYSICAL_ADDRESS, default=0x0): cv.int_range(
+            min=0, max=0xFFFE
+        ),
         cv.Optional(CONF_PROMISCUOUS_MODE, default=False): cv.boolean,
         cv.Required(CONF_PIN): pins.internal_gpio_output_pin_schema,
         cv.Optional(CONF_ON_MESSAGE): automation.validate_automation(
@@ -103,6 +101,12 @@ async def to_code(config):
         var = cg.new_Pvariable(config[CONF_ID], var)
 
     await cg.register_component(var, config)
+
+    cg.add_library(
+        "",
+        "",
+        "https://github.com/s-moch/CEC.git#bfbc1ac4ea3419af3943851de582a80dde0d67aa",
+    )
     cg.add(var.set_address([config[CONF_ADDRESS]]))
     cg.add(var.set_physical_address([config[CONF_PHYSICAL_ADDRESS]]))
     cg.add(var.set_promiscuous_mode([config[CONF_PROMISCUOUS_MODE]]))

@@ -6,7 +6,7 @@
 #include "esphome/core/optional.h"
 #include "esphome/core/log.h"
 
-#include "CEC_Device.h"
+#include <CEC_Device.h>
 
 #include <functional>
 
@@ -27,25 +27,24 @@ template<typename... Ts> class HdmiCecSendAction;
 
 static const uint8_t HDMI_CEC_MAX_DATA_LENGTH = 16;
 
-class MyCEC_Device : public CEC_Device {
+class MyCecDevice : public CEC_Device {
  public:
-  MyCEC_Device() : CEC_Device(){};
+  MyCecDevice() : CEC_Device(){};
   std::function<void(int, int, unsigned char *, int)> on_receive_;
   std::function<void(int)> on_ready_;
   void set_pin(InternalGPIOPin *pin) {
-    this->pin_ = pin->get_pin();
-    pinMode(this->pin_, INPUT);
+    this->pin_ = pin;
+    this->pin_->pin_mode(gpio::FLAG_INPUT);
   }
 
  protected:
-  virtual bool LineState();
-  virtual void SetLineState(bool);
-  virtual void OnReady(int logicalAddress);
-  virtual void OnReceiveComplete(unsigned char *buffer, int count, bool ack);
-  virtual void OnTransmitComplete(unsigned char *buffer, int count, bool ack);
+  virtual bool LineState();                                                     // NOLINT(readability-identifier-naming)
+  virtual void SetLineState(bool);                                              // NOLINT(readability-identifier-naming)
+  virtual void OnReady(int logical_address);                                    // NOLINT(readability-identifier-naming)
+  virtual void OnReceiveComplete(unsigned char *buffer, int count, bool ack);   // NOLINT(readability-identifier-naming)
+  virtual void OnTransmitComplete(unsigned char *buffer, int count, bool ack);  // NOLINT(readability-identifier-naming)
 
- private:
-  int pin_;
+  InternalGPIOPin *pin_;
 };
 
 class HdmiCec : public Component {
@@ -76,11 +75,10 @@ class HdmiCec : public Component {
   uint16_t physical_address_;
   bool promiscuous_mode_;
 
-  MyCEC_Device ceclient_;
+  MyCecDevice ceclient_;
   HighFrequencyLoopRequester high_freq_;
 
- private:
-  void send_data_internal(uint8_t source, uint8_t destination, unsigned char *buffer, int count);
+  void send_data_internal_(uint8_t source, uint8_t destination, unsigned char *buffer, int count);
 };
 
 template<typename... Ts> class HdmiCecSendAction : public Action<Ts...>, public Parented<HdmiCec> {
@@ -124,7 +122,7 @@ class HdmiCecTrigger : public Trigger<uint8_t, uint8_t, std::vector<uint8_t>>, p
   void set_source(uint8_t source) { this->source_ = source; }
   void set_destination(uint8_t destination) { this->destination_ = destination; }
   void set_opcode(uint8_t opcode) { this->opcode_ = opcode; }
-  void set_data(std::vector<uint8_t> data) { this->data_ = data; }
+  void set_data(const std::vector<uint8_t> &data) { this->data_ = data; }
 
  protected:
   HdmiCec *parent_;
