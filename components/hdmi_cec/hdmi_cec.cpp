@@ -16,12 +16,12 @@ void message_to_debug_string(char *message, const unsigned char *buffer, int cou
   }
 }
 
-bool MyCecDevice::LineState() {
+bool HdmiCec::LineState() {
   int state = this->pin_->digital_read();
   return state != LOW;
 }
 
-void MyCecDevice::SetLineState(bool state) {
+void HdmiCec::SetLineState(bool state) {
   if (state) {
     this->pin_->pin_mode(gpio::FLAG_INPUT);
   } else {
@@ -30,83 +30,78 @@ void MyCecDevice::SetLineState(bool state) {
   }
 }
 
-void MyCecDevice::OnReady(int logical_address) { this->on_ready_(logical_address); }
+void HdmiCec::OnReady(int logical_address) {
+  // This is called after the logical address has been allocated
+  ESP_LOGD(TAG, "Device ready, Logical address assigned: %d", logical_address);
+  this->address_ = logical_address;
+  // Report physical address
+  unsigned char buf[4] = {0x84, (unsigned char) (physical_address_ >> 8), (unsigned char) (physical_address_ & 0xff),
+                          address_};
+  this->send_data_internal_(this->address_, 0xF, buf, 4);
+}
 
-void MyCecDevice::OnReceiveComplete(unsigned char *buffer, int count, bool ack) {
+void HdmiCec::OnReceiveComplete(unsigned char *buffer, int count, bool ack) {
   // No command received?
   if (count < 2)
     return;
 
   auto source = (buffer[0] & 0xF0) >> 4;
   auto destination = (buffer[0] & 0x0F);
-  this->on_receive_(source, destination, &(buffer[1]), count - 1);
+
+  // If we're not in promiscuous mode and the message isn't for us, ignore it.
+  if (!this->promiscuous_mode_ && destination != this->address_ && destination != 0xF) {
+    return;
+  }
+
+  // Pop the source/destination byte from buffer
+  buffer = &buffer[1];
+  count = count - 1;
+
+  char debugMessage[HDMI_CEC_MAX_DATA_LENGTH * 3];
+  message_to_debug_string(debugMessage, buffer, count);
+  ESP_LOGD(TAG, "RX: (%d->%d) %02X:%s", source, destination, ((source & 0x0f) << 4) | (destination & 0x0f),
+           debugMessage);
+
+  // Handling the physical address response in code instead of yaml since I think it always
+  // needs to happen for other devices to be able to talk to this device.
+  if (buffer[0] == 0x83 && destination == address_) {
+    // Report physical address
+    unsigned char buf[4] = {0x84, (unsigned char) (physical_address_ >> 8), (unsigned char) (physical_address_ & 0xff),
+                            address_};
+    this->send_data_internal_(this->address_, 0xF, buf, 4);
+  }
+
+  uint8_t opcode = buffer[0];
+  for (auto trigger : this->triggers_) {
+    if ((!trigger->opcode_.has_value() || (*trigger->opcode_ == opcode)) &&
+        (!trigger->source_.has_value() || (*trigger->source_ == source)) &&
+        (!trigger->destination_.has_value() || (*trigger->destination_ == destination)) &&
+        (!trigger->data_.has_value() ||
+         (count == trigger->data_->size() && std::equal(trigger->data_->begin(), trigger->data_->end(), buffer)))) {
+      auto dataVec = std::vector<uint8_t>(buffer, buffer + count);
+      trigger->trigger(source, destination, dataVec);
+    }
+  }
 }
 
-void MyCecDevice::OnTransmitComplete(unsigned char *buffer, int count, bool ack) {}
-
-// Used so that `pin_interrupt` doesn't fire when we're toggling the line
-// TODO: Move this to an instance variable
-volatile boolean disable_line_interrupts = false;
+void HdmiCec::OnTransmitComplete(unsigned char *buffer, int count, bool ack) {}
 
 void IRAM_ATTR HOT HdmiCec::pin_interrupt(HdmiCec *arg) {
-  if (disable_line_interrupts)
+  if (arg->disable_line_interrupts_)
     return;
-  arg->ceclient_.Run();
+  arg->Run();
 }
 
 void HdmiCec::setup() {
   this->high_freq_.start();
 
   ESP_LOGCONFIG(TAG, "Setting up HDMI-CEC...");
-  this->ceclient_.set_pin(this->pin_);
-  this->ceclient_.Initialize(0x2000, CEC_Device::CDT_AUDIO_SYSTEM, true);
+  this->Initialize(0x2000, CEC_Device::CDT_AUDIO_SYSTEM, true);
 
   // This isn't quite enough to allow us to get rid of the HighFrequencyLoopRequester.
   // There's probably something that needs to wait a certain amount of time after
   // an interrupt.
   this->pin_->attach_interrupt(HdmiCec::pin_interrupt, this, gpio::INTERRUPT_ANY_EDGE);
-
-  this->ceclient_.on_receive_ = [this](int source, int destination, unsigned char *buffer, int count) {
-    // If we're not in promiscuous mode and the message isn't for us, ignore it.
-    if (!this->promiscuous_mode_ && destination != this->address_ && destination != 0xF) {
-      return;
-    }
-
-    char debugMessage[HDMI_CEC_MAX_DATA_LENGTH * 3];
-    message_to_debug_string(debugMessage, buffer, count);
-    ESP_LOGD(TAG, "RX: (%d->%d) %02X:%s", source, destination, ((source & 0x0f) << 4) | (destination & 0x0f),
-             debugMessage);
-
-    // Handling the physical address response in code instead of yaml since I think it always
-    // needs to happen for other devices to be able to talk to this device.
-    if (buffer[0] == 0x83 && destination == address_) {
-      // Report physical address
-      unsigned char buf[4] = {0x84, (unsigned char) (physical_address_ >> 8),
-                              (unsigned char) (physical_address_ & 0xff), address_};
-      this->send_data_internal_(this->address_, 0xF, buf, 4);
-    }
-
-    uint8_t opcode = buffer[0];
-    for (auto trigger : this->triggers_) {
-      if ((!trigger->opcode_.has_value() || (*trigger->opcode_ == opcode)) &&
-          (!trigger->source_.has_value() || (*trigger->source_ == source)) &&
-          (!trigger->destination_.has_value() || (*trigger->destination_ == destination)) &&
-          (!trigger->data_.has_value() ||
-           (count == trigger->data_->size() && std::equal(trigger->data_->begin(), trigger->data_->end(), buffer)))) {
-        auto dataVec = std::vector<uint8_t>(buffer, buffer + count);
-        trigger->trigger(source, destination, dataVec);
-      }
-    }
-  };
-  this->ceclient_.on_ready_ = [this](int logical_address) {
-    // This is called after the logical address has been allocated
-    ESP_LOGD(TAG, "Device ready, Logical address assigned: %d", logical_address);
-    this->address_ = logical_address;
-    // Report physical address
-    unsigned char buf[4] = {0x84, (unsigned char) (physical_address_ >> 8), (unsigned char) (physical_address_ & 0xff),
-                            address_};
-    this->send_data_internal_(this->address_, 0xF, buf, 4);
-  };
 }
 
 void HdmiCec::dump_config() {
@@ -128,24 +123,22 @@ void HdmiCec::send_data_internal_(uint8_t source, uint8_t destination, unsigned 
   ESP_LOGD(TAG, "TX: (%d->%d) %02X:%s", source, destination, ((source & 0x0f) << 4) | (destination & 0x0f),
            debugMessage);
 
-  this->ceclient_.TransmitFrame(destination, buffer, count);
+  this->TransmitFrame(destination, buffer, count);
 }
 
 void HdmiCec::add_trigger(HdmiCecTrigger *trigger) { this->triggers_.push_back(trigger); };
 
-// TODO: Move this to static or remove
-int counter = 0;
-int timer = 0;
-
 void HdmiCec::loop() {
-  disable_line_interrupts = true;
-  this->ceclient_.Run();
-  disable_line_interrupts = false;
+  this->disable_line_interrupts_ = true;
+  this->Run();
+  this->disable_line_interrupts_ = false;
 
   // The current implementation of CEC is inefficient and relies on polling to
   // identify signal changes at just the right time. Experimentally it needs to
   // run faster than every ~0.04ms to be reliable. This can be solved by creating
   // an interrupt-driven CEC driver.
+  static int counter = 0;
+  static int timer = 0;
   if (millis() - timer > 10000) {
     ESP_LOGD(TAG, "Ran %d times in 10000ms (every %fms)", counter, 10000.0f / (float) counter);
     counter = 0;

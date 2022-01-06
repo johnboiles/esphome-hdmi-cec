@@ -13,72 +13,51 @@
 namespace esphome {
 namespace hdmi_cec {
 
-enum Error : uint8_t {
-  ERROR_OK = 0,
-  ERROR_FAIL = 1,
-  ERROR_ALLTXBUSY = 2,
-  ERROR_FAILINIT = 3,
-  ERROR_FAILTX = 4,
-  ERROR_NOMSG = 5
-};
-
 class HdmiCecTrigger;
 template<typename... Ts> class HdmiCecSendAction;
 
 static const uint8_t HDMI_CEC_MAX_DATA_LENGTH = 16;
 
-class MyCecDevice : public CEC_Device {
+class HdmiCec : public Component, CEC_Device {
  public:
-  MyCecDevice() : CEC_Device(){};
-  std::function<void(int, int, unsigned char *, int)> on_receive_;
-  std::function<void(int)> on_ready_;
-  void set_pin(InternalGPIOPin *pin) {
-    this->pin_ = pin;
-    this->pin_->pin_mode(gpio::FLAG_INPUT);
-  }
+  HdmiCec(){};
+  // Component overrides
+  void setup() override;
+  void dump_config() override;
+  float get_setup_priority() const override { return setup_priority::HARDWARE; }
+  void loop() override;
 
- protected:
+  // CEC_Device overrides
   virtual bool LineState();                                                     // NOLINT(readability-identifier-naming)
   virtual void SetLineState(bool);                                              // NOLINT(readability-identifier-naming)
   virtual void OnReady(int logical_address);                                    // NOLINT(readability-identifier-naming)
   virtual void OnReceiveComplete(unsigned char *buffer, int count, bool ack);   // NOLINT(readability-identifier-naming)
   virtual void OnTransmitComplete(unsigned char *buffer, int count, bool ack);  // NOLINT(readability-identifier-naming)
 
-  InternalGPIOPin *pin_;
-};
-
-class HdmiCec : public Component {
- public:
-  HdmiCec(){};
-  void setup() override;
-  void dump_config() override;
-  float get_setup_priority() const override { return setup_priority::HARDWARE; }
-  void loop() override;
-
   void send_data(uint8_t source, uint8_t destination, const std::vector<uint8_t> &data);
   void set_address(uint8_t address) { this->address_ = address; }
   void set_physical_address(uint16_t physical_address) { this->physical_address_ = physical_address; }
   void set_promiscuous_mode(uint16_t promiscuous_mode) { this->promiscuous_mode_ = promiscuous_mode; }
-  void set_pin(InternalGPIOPin *pin) { this->pin_ = pin; }
+  void set_pin(InternalGPIOPin *pin) {
+    this->pin_ = pin;
+    this->pin_->pin_mode(gpio::FLAG_INPUT);
+  }
+  void add_trigger(HdmiCecTrigger *trigger);
   static void pin_interrupt(HdmiCec *arg);
 
-  void add_trigger(HdmiCecTrigger *trigger);
-
  protected:
-  InternalGPIOPin *pin_;
+  void send_data_internal_(uint8_t source, uint8_t destination, unsigned char *buffer, int count);
 
   template<typename... Ts> friend class HdmiCecSendAction;
 
+  InternalGPIOPin *pin_;
   std::vector<HdmiCecTrigger *> triggers_{};
-  // CEC physical address 0-14
   uint8_t address_;
   uint16_t physical_address_;
   bool promiscuous_mode_;
-
-  MyCecDevice ceclient_;
   HighFrequencyLoopRequester high_freq_;
-
-  void send_data_internal_(uint8_t source, uint8_t destination, unsigned char *buffer, int count);
+  // Used so that `pin_interrupt` doesn't fire when we're toggling the line
+  volatile boolean disable_line_interrupts_ = false;
 };
 
 template<typename... Ts> class HdmiCecSendAction : public Action<Ts...>, public Parented<HdmiCec> {
