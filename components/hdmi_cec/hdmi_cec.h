@@ -1,5 +1,7 @@
 #pragma once
 
+#ifdef USE_ARDUINO
+
 #include "esphome/core/automation.h"
 #include "esphome/core/component.h"
 #include "esphome/core/hal.h"
@@ -28,11 +30,12 @@ class HdmiCec : public Component, CEC_Device {
   void loop() override;
 
   // CEC_Device overrides
-  virtual bool LineState();                                                     // NOLINT(readability-identifier-naming)
-  virtual void SetLineState(bool);                                              // NOLINT(readability-identifier-naming)
-  virtual void OnReady(int logical_address);                                    // NOLINT(readability-identifier-naming)
-  virtual void OnReceiveComplete(unsigned char *buffer, int count, bool ack);   // NOLINT(readability-identifier-naming)
-  virtual void OnTransmitComplete(unsigned char *buffer, int count, bool ack);  // NOLINT(readability-identifier-naming)
+  bool LineState() override;                                                    // NOLINT(readability-identifier-naming)
+  void SetLineState(bool) override;                                             // NOLINT(readability-identifier-naming)
+  void OnReady(int logical_address) override;                                   // NOLINT(readability-identifier-naming)
+  void OnReceiveComplete(unsigned char *buffer, int count, bool ack) override;  // NOLINT(readability-identifier-naming)
+  void OnTransmitComplete(unsigned char *buffer, int count,
+                          bool ack) override;  // NOLINT(readability-identifier-naming)
 
   void send_data(uint8_t source, uint8_t destination, const std::vector<uint8_t> &data);
   void set_address(uint8_t address) { this->address_ = address; }
@@ -113,3 +116,5 @@ class HdmiCecTrigger : public Trigger<uint8_t, uint8_t, std::vector<uint8_t>>, p
 
 }  // namespace hdmi_cec
 }  // namespace esphome
+
+#endif  // USE_ARDUINO

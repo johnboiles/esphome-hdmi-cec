@@ -35,27 +35,29 @@ HdmiCecTrigger = hdmi_cec_ns.class_(
     cg.Component,
 )
 
-
-CONFIG_SCHEMA = cv.Schema(
-    {
-        cv.GenerateID(): cv.declare_id(HdmiCecComponent),
-        cv.Required(CONF_ADDRESS): cv.int_range(min=0, max=15),
-        cv.Optional(CONF_PHYSICAL_ADDRESS, default=0x0): cv.int_range(
-            min=0, max=0xFFFE
-        ),
-        cv.Optional(CONF_PROMISCUOUS_MODE, default=False): cv.boolean,
-        cv.Required(CONF_PIN): pins.internal_gpio_output_pin_schema,
-        cv.Optional(CONF_ON_MESSAGE): automation.validate_automation(
-            {
-                cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(HdmiCecTrigger),
-                cv.Optional(CONF_SOURCE): cv.int_range(min=0, max=15),
-                cv.Optional(CONF_DESTINATION): cv.int_range(min=0, max=15),
-                cv.Optional(CONF_OPCODE): cv.int_range(min=0, max=255),
-                cv.Optional(CONF_DATA): cv.templatable(validate_raw_data),
-            }
-        ),
-    }
-).extend(cv.COMPONENT_SCHEMA)
+CONFIG_SCHEMA = cv.All(
+    cv.Schema(
+        {
+            cv.GenerateID(): cv.declare_id(HdmiCecComponent),
+            cv.Required(CONF_ADDRESS): cv.int_range(min=0, max=15),
+            cv.Optional(CONF_PHYSICAL_ADDRESS, default=0x0): cv.int_range(
+                min=0, max=0xFFFE
+            ),
+            cv.Optional(CONF_PROMISCUOUS_MODE, default=False): cv.boolean,
+            cv.Required(CONF_PIN): pins.internal_gpio_output_pin_schema,
+            cv.Optional(CONF_ON_MESSAGE): automation.validate_automation(
+                {
+                    cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(HdmiCecTrigger),
+                    cv.Optional(CONF_SOURCE): cv.int_range(min=0, max=15),
+                    cv.Optional(CONF_DESTINATION): cv.int_range(min=0, max=15),
+                    cv.Optional(CONF_OPCODE): cv.int_range(min=0, max=255),
+                    cv.Optional(CONF_DATA): cv.templatable(validate_raw_data),
+                }
+            ),
+        }
+    ).extend(cv.COMPONENT_SCHEMA),
+    cv.only_with_arduino,
+)
 
 
 @automation.register_action(

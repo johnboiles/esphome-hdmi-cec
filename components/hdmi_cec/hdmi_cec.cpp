@@ -1,3 +1,5 @@
+#ifdef USE_ARDUINO
+
 #include "hdmi_cec.h"
 #include "esphome/core/log.h"
 #include "esphome/core/hal.h"
@@ -78,8 +80,8 @@ void HdmiCec::OnReceiveComplete(unsigned char *buffer, int count, bool ack) {
         (!trigger->destination_.has_value() || (*trigger->destination_ == destination)) &&
         (!trigger->data_.has_value() ||
          (count == trigger->data_->size() && std::equal(trigger->data_->begin(), trigger->data_->end(), buffer)))) {
-      auto dataVec = std::vector<uint8_t>(buffer, buffer + count);
-      trigger->trigger(source, destination, dataVec);
+      auto data_vec = std::vector<uint8_t>(buffer, buffer + count);
+      trigger->trigger(source, destination, data_vec);
     }
   }
 }
@@ -112,9 +114,9 @@ void HdmiCec::dump_config() {
 
 void HdmiCec::send_data(uint8_t source, uint8_t destination, const std::vector<uint8_t> &data) {
   const uint8_t *buffer = reinterpret_cast<const uint8_t *>(data.data());
-  auto charBuffer = const_cast<unsigned char *>(buffer);
+  auto char_buffer = const_cast<unsigned char *>(buffer);
 
-  this->send_data_internal_(source, destination, charBuffer, data.size());
+  this->send_data_internal_(source, destination, char_buffer, data.size());
 }
 
 void HdmiCec::send_data_internal_(uint8_t source, uint8_t destination, unsigned char *buffer, int count) {
@@ -149,3 +151,5 @@ void HdmiCec::loop() {
 
 }  // namespace hdmi_cec
 }  // namespace esphome
+
+#endif  // USE_ARDUINO
